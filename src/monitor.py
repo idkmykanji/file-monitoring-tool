@@ -10,6 +10,7 @@ import logging
 from typing import List, Dict
 import pwd
 import grp
+from src.storage import load_files, save_files
 
 logger = logging.getLogger(__name__)
 
@@ -97,39 +98,41 @@ def scan_once(monitored_files: List[Dict]) -> List[str]:
 
         current_info = get_file_metadata(path)
 
+        #print("DEBUG:", path.name, "old size:", file_info["size"], "new size:", current_info["size"])
+
         if file_info["owner"] != current_info["owner"]:
-            msg = f"[OWNER_CHANGED] {path} owner changed from {file_info['owner']} -> {current_info['owner']}."
+            msg = f"[OWNER_CHANGED] {path.name} owner changed from {file_info['owner']} -> {current_info['owner']}."
             events.append(msg)
             logger.info(msg)
             file_info["owner"] = current_info["owner"]
 
         if file_info["group"] != current_info["group"]:
-            msg = f"[GROUP_CHANGED] {path} group changed from {file_info['group']} -> {current_info['group']}."
+            msg = f"[GROUP_CHANGED] {path.name} group changed from {file_info['group']} -> {current_info['group']}."
             events.append(msg)
             logger.info(msg)
             file_info["group"] = current_info["group"]
         
         if file_info["permissions"] != current_info["permissions"]:
-            msg = f"[PERMISSIONS_CHANGED] {path} permissions changed from {file_info['permissions']} -> {current_info['permissions']}."
+            msg = f"[PERMISSIONS_CHANGED] {path.name} permissions changed from {file_info['permissions']} -> {current_info['permissions']}."
             events.append(msg)
             logger.info(msg)
             file_info["permissions"] = current_info["permissions"]
         
         if file_info["size"] != current_info["size"]:
-            msg = f"[SIZE_CHANGED] {path} size changed from {file_info['size']} -> {current_info['size']}."
+            msg = f"[SIZE_CHANGED] {path.name} size changed from {file_info['size']} -> {current_info['size']}."
             events.append(msg)
             logger.info(msg)
             file_info["size"] = current_info["size"]
         
         if file_info["last_modified_ts"] != current_info["last_modified_ts"]:
-            msg = f"[MODIFIED] {path} last modified time changed from {file_info['last_modified']} -> {current_info['last_modified']}."
+            msg = f"[MODIFIED] {path.name} last modified time changed from {file_info['last_modified']} -> {current_info['last_modified']}."
             events.append(msg)
             logger.info(msg)
             file_info["last_modified_ts"] = current_info["last_modified_ts"]
             file_info["last_modified"] = current_info["last_modified"]
 
         if file_info["hash_value"] != current_info["hash_value"]:
-            msg = f"[HASH_CHANGED] {path} hash value changed."
+            msg = f"[HASH_CHANGED] {path.name} hash value changed."
             events.append(msg)
             logger.info(msg)
             file_info["hash_value"] = current_info["hash_value"]
@@ -137,6 +140,8 @@ def scan_once(monitored_files: List[Dict]) -> List[str]:
         file_info["last_hash_ts"] = current_info["last_hash_ts"]
         file_info["last_hash"] = current_info["last_hash"]
 
-        return events
+       
+
+    return events
 
 

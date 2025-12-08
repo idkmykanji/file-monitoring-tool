@@ -14,6 +14,9 @@ logs/*.log
 #data
 data/*.json
 
+#test
+tests
+
 # IDE files
 .vscode/
 .idea/

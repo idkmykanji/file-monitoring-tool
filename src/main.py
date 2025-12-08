@@ -3,9 +3,11 @@
 from __future__ import annotations
 from pathlib import Path
 import logging
+import time
 from typing import List, Dict
 from src.monitor import get_file_metadata, scan_once
 from src.storage import load_files, save_files, add_file, remove_file
+from src.permissions import get_permissions_str, get_permission_octal, set_permissions_octal, modify_permission
 
 def setup_logging() -> None:
     """Setup logging configuration."""
@@ -83,6 +85,32 @@ def scan_once_and_report() -> None:
         for event in events:
             print(event)
 
+def continuous_scan(interval: int = 5) -> None:
+    """Continuously scan monitored files at specified intervals."""
+
+    files = load_files()
+    if not files:
+        print("No files are currently being monitored.")
+        return
+
+    print(f"Starting continuous scan every {interval} seconds. Press Ctrl+C to stop.")
+
+    try:
+        while True:
+            events = scan_once(files)
+            save_files(files)
+
+            if events:
+                print("Changes detected:")
+                for event in events:
+                    print(event)
+            else:
+                print("No changes detected.")
+
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("Continuous scanning stopped by user.")
+
 def main_menu() -> None:
     """Display the main menu and handle user input."""
 
@@ -92,7 +120,9 @@ def main_menu() -> None:
         print("2. Add a file to monitor")
         print("3. Remove a file from monitoring")
         print("4. Scan monitored files once")
-        print("5. Exit")
+        print("5. Change file permissions")
+        print("6. Start continuous scanning")
+        print("7. Exit")
 
         choice = input("Enter your choice: ").strip()
 
@@ -105,6 +135,21 @@ def main_menu() -> None:
         elif choice == "4":
             scan_once_and_report()
         elif choice == "5":
+            path_str = input("Enter the path of the file to change permissions: ").strip()
+            path = Path(path_str).expanduser().resolve()
+            entity = input("Enter the entity (user/group/others): ").strip()
+            perms_str = input("Enter the permissions to modify (read/write/execute) separated by commas: ").strip()
+            perms = [p.strip() for p in perms_str.split(",")]
+            action = input("Enter the action (add/remove): ").strip()
+
+            
+            modify_permission(path, entity, perms, action)
+            
+        elif choice == "6":
+            interval_str = input("Enter the scan interval in seconds (default 5): ").strip()
+            interval = int(interval_str) if interval_str.isdigit() else 5
+            continuous_scan(interval)
+        elif choice == "7":
             print("Exiting File Monitor.")
             break
         else:
