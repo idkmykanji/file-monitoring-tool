@@ -100,6 +100,8 @@ def scan_once(monitored_files: List[Dict]) -> List[str]:
 
         #print("DEBUG:", path.name, "old size:", file_info["size"], "new size:", current_info["size"])
 
+        #compare and log changes for each monitored attribute + add to events list
+
         if file_info["owner"] != current_info["owner"]:
             msg = f"[OWNER_CHANGED] {path.name} owner changed from {file_info['owner']} -> {current_info['owner']}."
             events.append(msg)
