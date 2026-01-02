@@ -19,13 +19,17 @@ HASH_ALGORITHM: str = "sha256"
 def calculate_hash(path: Path) -> str:
     """Calculate the hash of a file using the specified hashing algorithm. Default is SHA-256."""
     
-    #create hash object
-    hash = hashlib.new(HASH_ALGORITHM)
+    try:
+        #create hash object
+        hash = hashlib.new(HASH_ALGORITHM)
 
-    with path.open("rb") as f:
-        #read file in chunks until EOF
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash.update(chunk)
+        with path.open("rb") as f:
+            #read file in chunks until EOF
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash.update(chunk)
+    except PermissionError:
+        logger.error(f"Permission denied when accessing file {path} for hashing.")
+        return None
     #return hash digest as hexadecimal string        
     return hash.hexdigest()
 
@@ -76,7 +80,7 @@ def get_file_metadata(path: Path) -> Dict:
         "last_modified_ts": mtime_ts,
         "last_modified": mtime_iso,
         "hash_algorithm": HASH_ALGORITHM,
-        "hash_value": hash_value,
+        "hash_value": hash_value if hash_value else "UNREADABLE",
         "last_hash_ts": hash_time_ts,
         "last_hash": hash_time_iso,
     }

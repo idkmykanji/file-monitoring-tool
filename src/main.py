@@ -8,7 +8,7 @@ from typing import List, Dict
 from src.monitor import get_file_metadata, scan_once
 from src.storage import load_files, save_files, add_file, remove_file
 from src.permissions import get_permissions_str, get_permission_octal, set_permissions_octal, modify_permission
-from src.utils import setup_logging, format_event
+from src.utils import setup_logging, format_event, iter_directory_files, normalize_path
 
 
 def list_monitored_files() -> None:
@@ -38,7 +38,7 @@ def list_monitored_files() -> None:
 def add_monitored_file() -> None:
     """Add a new file to be monitored."""
     path_str = input("Enter the path of the file to monitor: ").strip()
-    path = Path(path_str).expanduser().resolve()
+    path = normalize_path(path_str)
     if not path.exists():
         print(f"File {path_str} does not exist.")
         return
@@ -47,12 +47,56 @@ def add_monitored_file() -> None:
     add_file(file_info)
     print(f"Started monitoring {path_str}.")
 
+def add_monitored_directory() -> None:
+    """Add all files in a directory to be monitored."""
+    dir_str = input("Enter the path of the directory to monitor: ").strip()
+    directory = normalize_path(dir_str)
+    if not directory.is_dir():
+        print(f"{dir_str} is not a valid directory.")
+        return
+
+    recursive_str = input("Monitor recursively? (y/n): ").strip().lower()
+    recursive = recursive_str == "y"
+
+    added_files = 0
+    for file_path in iter_directory_files(directory, recursive):
+        file_info = get_file_metadata(file_path)
+        add_file(file_info)
+        added_files += 1
+
+    print(f"Started monitoring {added_files} files in {dir_str}.")
+
 def remove_monitored_file() -> None:
     """Remove a file from being monitored."""
     path_str = input("Enter the path of the file to stop monitoring: ").strip()
-    path = Path(path_str).expanduser().resolve()
+    path = normalize_path(path_str)
     remove_file(str(path))
     print(f"Stopped monitoring {path_str}.")
+
+def remove_monitored_directory() -> None:
+    """Remove all files in a directory from being monitored."""
+    dir_str = input("Enter the path of the directory to stop monitoring: ").strip()
+    directory = normalize_path(dir_str)
+    if not directory.is_dir():
+        print(f"{dir_str} is not a valid directory.")
+        return
+
+    recursive_str = input("Remove recursively? (y/n): ").strip().lower()
+    recursive = recursive_str == "y"
+
+    removed_files = 0
+    monitored_files = load_files()
+    paths_to_remove = {str(p) for p in iter_directory_files(directory, recursive)}
+
+    new_monitored_files = []
+    for file_info in monitored_files:
+        if file_info["path"] in paths_to_remove:
+            removed_files += 1
+        else:
+            new_monitored_files.append(file_info)
+
+    save_files(new_monitored_files)
+    print(f"Stopped monitoring {removed_files} files in {dir_str}.")
 
 def scan_once_and_report() -> None:
     """Perform a single scan of monitored files and report changes."""
@@ -105,28 +149,38 @@ def main_menu() -> None:
         
         print("\nFile Monitor Menu:")
         print("1. List monitored files")
-        print("2. Add a file to monitor")
-        print("3. Remove a file from monitoring")
+        print("2. Add/remove a file from monitoring")
+        print("3. Add/remove a directory from monitoring")
         print("4. Scan monitored files once")
         print("5. Change file permissions")
         print("6. Get file permissions")
         print("7. Start continuous scanning")
-        print("10. Exit")
+        print("8. Exit")
 
         choice = input("Enter your choice: ").strip()
 
         if choice == "1":
             list_monitored_files()
         elif choice == "2":
-            add_monitored_file()
+            file_action = input("Add or Remove file? (a/r): ").strip().lower()
+            if file_action == "a":
+                add_monitored_file()
+            elif file_action == "r":
+                remove_monitored_file()
         elif choice == "3":
-            remove_monitored_file()
+            dir_action = input("Add or Remove directory? (a/r): ").strip().lower()
+            if dir_action == "a":
+                add_monitored_directory()
+            elif dir_action == "r":
+                remove_monitored_directory()
+            else:
+                print("Invalid choice. Please enter 'a' to add or 'r' to remove.")
         elif choice == "4":
             scan_once_and_report()
         elif choice == "5":
             try:
                 path_str = input("Enter the path of the file to change permissions: ").strip()
-                path = Path(path_str).expanduser().resolve()
+                path = normalize_path(path_str)
                 entity = input("Enter the entity (user/group/others/all/special): ").strip()
                 perms_str = input("Enter the permissions to modify (read/write/execute or suid/sgid/sticky for special permissions) separated by commas: ").strip()
                 perms = [p.strip() for p in perms_str.split(",")]
@@ -136,9 +190,15 @@ def main_menu() -> None:
                 print(f"Error changing permissions: {exc}")
         elif choice == "6":
             try:
-                path_str = input("Enter the path of the file to get permissions: ").strip()
-                path = Path(path_str).expanduser().resolve()
-                print(get_permissions_str(path))
+                mode = input("Get permissions in (s)tring or (o)ctal format? ").strip().lower()
+                if mode == "o":
+                    path_str = input("Enter the path of the file to get permissions: ").strip()
+                    path = normalize_path(path_str)
+                    print(get_permission_octal(path))
+                elif mode == "s":
+                    path_str = input("Enter the path of the file to get permissions: ").strip()
+                    path = normalize_path(path_str)
+                    print(get_permissions_str(path))
             except Exception as exc:
                 print(f"Error retrieving permissions: {exc}")
         elif choice == "7":
@@ -149,7 +209,7 @@ def main_menu() -> None:
             except Exception as exc:
                 print(f"Error starting continuous scan: {exc}")
         
-        elif choice == "10":
+        elif choice == "8":
             print("Exiting File Monitor.")
             break
         else:
